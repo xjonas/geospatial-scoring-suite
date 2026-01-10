@@ -45,9 +45,7 @@ pnpm-debug.log*
 dist/
 .next/
 
-# Project Specific - Data
-backend-compute/Core/data/
-server/data/
-
-# Specific exclusions if needed
-frontend-website/dist/
+# Project Specific 
+# backend-compute/Core/data/
+# server/data/
+# frontend-website/dist/
