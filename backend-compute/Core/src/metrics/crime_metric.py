@@ -1,7 +1,3 @@
-"""
-Implementation of the Crime metric based on burglary data and safety metric.
-Analyzes burglary rates per region to determine residential safety scores.
-"""
 import os
 import pandas as pd
 import numpy as np
@@ -22,40 +18,17 @@ class CrimeMetric(BaseMetric):
     def __init__(self, weight=1.0, data_manager=None,
                  burglary_filepath="data/input/crime_data_with_population.csv",
                  plz_kreis_filepath="data/input/plz_kreis_data.csv"):
-        """
-        Initialize crime metric.
-
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric in the final score (not used for walkability)
-        data_manager : DataManager
-            Data manager instance for efficient data access
-        burglary_filepath : str
-            Path to the burglary statistics CSV data
-        plz_kreis_filepath : str
-            Path to the PLZ to Kreis mapping data
-        """
         super().__init__("crime", weight)
         self.data_manager = data_manager
         self.burglary_filepath = burglary_filepath
         self.plz_kreis_filepath = plz_kreis_filepath
 
         # Component weights
-        self.burglary_weight = 0.5    # 50% burglary data
-        self.safety_weight = 0.5      # 50% existing safety score
+        self.burglary_weight = 0.5 # 50% burglary data
+        self.safety_weight = 0.5 # 50% existing safety score
 
     def _load_burglary_data(self, city_name=None):
-        """
-        Load and process burglary data from CSV.
-        Uses caching through data manager if available.
-
-        Returns:
-        --------
-        DataFrame:
-            Processed burglary data with normalized scores
-        """
-        # Try to get from cache if data manager is available
+        # Uses caching through data manager if available
         if self.data_manager:
             cache_path = self.data_manager._get_cache_path("processed", "", f"burglary_data_{city_name}")
 
@@ -73,7 +46,7 @@ class CrimeMetric(BaseMetric):
         # Load CSV data
         df = pd.read_csv(self.burglary_filepath)
 
-        # Ensure 'Name', 'Type', 'Burglary' and 'Population' columns exist
+        # Ensure columns exist
         required_columns = ['Name', 'Type', 'Burglary', 'Population']
         if not all(col in df.columns for col in required_columns):
             print(f"Warning: Burglary data missing required columns. Required: {required_columns}, Found: {df.columns}")
@@ -112,25 +85,9 @@ class CrimeMetric(BaseMetric):
         return df
 
     def _get_region_for_hexagon(self, hexagon_id, city_name, city_plz=None):
-        """
-        Determine the appropriate region (Kreis, City, etc.) for a hexagon.
+        # Determine the appropriate region (Kreis, City, etc.) for a hexagon
+        # This method is identical to the one in walking_safety.py to ensure compatibility
 
-        This method is identical to the one in walking_safety.py to ensure compatibility.
-
-        Parameters:
-        -----------
-        hexagon_id : str
-            ID of the hexagon
-        city_name : str
-            Name of the city
-        city_plz : str, optional
-            Postal code of the city
-
-        Returns:
-        --------
-        tuple:
-            (region_name, region_type) for the hexagon
-        """
         # If no city_plz provided, try to get it from settings
         if not city_plz:
             try:
@@ -158,34 +115,14 @@ class CrimeMetric(BaseMetric):
         if kreis_name:
             return kreis_name, "Kreis"
         else:
-            # If mapping fails, fall back to city name
             return city_name, "City"
 
     def calculate(self, grid_gdf, burglary_data=None, city_name=None):
-        """
-        Calculate crime score for each hexagon based on burglary rates and existing safety data.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid (must already have walking_safety_score calculated)
-        burglary_data : DataFrame, optional
-            Pre-loaded burglary data (if not provided, will be loaded from file)
-        city_name : str, optional
-            Name of the city for region determination
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added crime metric columns
-        """
         print("Calculating Crime metric (burglaries + existing safety)...")
         start_time = time.time()
 
-        # Make a copy of the grid to avoid modifying the original
         grid_gdf = grid_gdf.copy()
 
-        # Verify that the walking_safety_score exists
         if 'walking_safety_score' not in grid_gdf.columns:
             print("Error: walking_safety_score not found in grid data. Run the SafetyMetric first.")
             # Create empty columns to avoid errors
@@ -197,7 +134,7 @@ class CrimeMetric(BaseMetric):
         # Get city name from TEST_CITY if not provided
         if not city_name:
             from config.settings import TEST_CITY
-            city_name = TEST_CITY.split(',')[0].strip()  # Extract just the city name part
+            city_name = TEST_CITY.split(',')[0].strip() # Extract just the city name part
 
         # Try to get PLZ from settings
         try:
@@ -267,17 +204,8 @@ class CrimeMetric(BaseMetric):
                 self.safety_weight * grid_gdf['crime_safety_score']
         )
 
-        # Add integer-rounded score column
         grid_gdf[f"{self.name}_score"] = grid_gdf[self.name].round().astype(int)
 
         print(f"Crime calculation complete. Total time: {time.time() - start_time:.2f} seconds")
-
-        # Debug prints for verification
-        '''print(f"\nCrime Metric Debug Information:")
-        print(f"Region: {grid_gdf['region_name_crime'].iloc[0]} ({grid_gdf['region_type_crime'].iloc[0]})")
-        print(f"Burglary-based safety score: {grid_gdf['burglary_safety_score'].iloc[0]:.1f}")
-        print(f"Safety score range: {grid_gdf['crime_safety_score'].min():.1f} - {grid_gdf['crime_safety_score'].max():.1f}")
-        print(f"Combined crime score range: {grid_gdf[self.name].min():.1f} - {grid_gdf[self.name].max():.1f}")
-        '''
 
         return grid_gdf

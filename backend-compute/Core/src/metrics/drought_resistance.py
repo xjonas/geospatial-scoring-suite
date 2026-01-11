@@ -1,7 +1,4 @@
-"""
-Implementation of the Drought Resistance metric based on historical soil moisture index (SMI) data.
-Uses preprocessed SMI data from the UFZ Drought Monitor Germany.
-"""
+
 import time
 import pandas as pd
 import numpy as np
@@ -12,7 +9,7 @@ from scipy.spatial import cKDTree
 class DroughtResistanceMetric(BaseMetric):
     """
     Metric that calculates drought resistance based on:
-    - Historical soil moisture data (SMI Gesamtboden) (70%)
+    - Historical soil moisture data (SMI Gesamtboden) (70%) https://www.ufz.de/index.php?de=37937
     - Local vegetation density from already loaded data (30%)
 
     Higher scores indicate better resistance to drought (0-100 scale).
@@ -20,26 +17,14 @@ class DroughtResistanceMetric(BaseMetric):
 
     def __init__(self, weight=1.0, data_manager=None,
                  drought_data_filepath="data/input/drought_resistance_data.csv"):
-        """
-        Initialize drought resistance metric.
-
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric (not used for overall walkability)
-        data_manager : DataManager
-            Data manager instance for efficient data access
-        drought_data_filepath : str
-            Path to preprocessed drought data
-        """
         super().__init__("drought_resistance", weight)
         self.data_manager = data_manager
         self.drought_data_filepath = drought_data_filepath
         self.spatial_grid_filepath = os.path.splitext(drought_data_filepath)[0] + '_grid.pkl'
 
         # Component weights
-        self.historical_weight = 0.6     # 70% historical SMI data
-        self.vegetation_weight = 0.4     # 30% vegetation factors
+        self.historical_weight = 0.6 # 60% historical SMI data
+        self.vegetation_weight = 0.4 # 40% vegetation factors
 
         # Drought severity weights for calculating combined score
         # More severe drought conditions receive higher penalties
@@ -55,11 +40,6 @@ class DroughtResistanceMetric(BaseMetric):
         self.drought_data = None
 
     def _load_drought_data(self):
-        """
-        Load preprocessed drought data and build spatial index if needed.
-        First tries to load the optimized spatial grid, falls back to CSV if needed.
-        """
-
         # First try to load the optimized spatial grid
         if os.path.exists(self.spatial_grid_filepath):
             try:
@@ -92,23 +72,8 @@ class DroughtResistanceMetric(BaseMetric):
             return pd.DataFrame()
 
     def _find_nearest_drought_data(self, lat, lon, k=4):
-        """
-        Find the k nearest drought data points and return their weighted average.
+        # Find the k nearest drought data points and return their weighted average
 
-        Parameters:
-        -----------
-        lat : float
-            Latitude of the point
-        lon : float
-            Longitude of the point
-        k : int
-            Number of nearest neighbors to consider (default: 4)
-
-        Returns:
-        --------
-        dict:
-            Dictionary of drought metrics for this location
-        """
         if self.spatial_tree is None or self.drought_data is None:
             # No spatial tree or data available
             return {
@@ -146,7 +111,7 @@ class DroughtResistanceMetric(BaseMetric):
         # Calculate weighted average
         for i, idx in enumerate(indices):
             # Inverse distance weighting
-            if distances[i] < 1e-10:  # Almost exact match
+            if distances[i] < 1e-10: # Almost exact match
                 weight = 1.0
                 total_weight = 1.0
 
@@ -174,21 +139,7 @@ class DroughtResistanceMetric(BaseMetric):
         return weighted_metrics
 
     def calculate(self, grid_gdf, city_name=None):
-        """
-        Calculate drought resistance score for each hexagon.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        city_name : str, optional
-            Name of the city
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added drought_resistance column
-        """
+        
         print("Calculating Drought Resistance metric...")
         start_time = time.time()
 
@@ -241,27 +192,27 @@ class DroughtResistanceMetric(BaseMetric):
             avg_smi = drought_metrics.get('avg_smi', 0.5)
             drought_freq = drought_metrics.get('total_drought_pct', 20.0)
 
-            # Better baseline calculation using non-linear SMI scaling
+            # baseline calculation using non-linear SMI scaling
             # SMI of 0.3-0.5 is considered normal, not drought prone
             # Map this range to scores of 50-80
             if avg_smi >= 0.5:
                 # Very good moisture levels (80-100)
-                smi_score = 80 + (avg_smi - 0.5) * 40  # 0.5->80, 1.0->100
+                smi_score = 80 + (avg_smi - 0.5) * 40 # 0.5->80, 1.0->100
             elif avg_smi >= 0.3:
                 # Normal moisture levels (50-80)
-                smi_score = 50 + (avg_smi - 0.3) * 150  # 0.3->50, 0.5->80
+                smi_score = 50 + (avg_smi - 0.3) * 150 # 0.3->50, 0.5->80
             else:
                 # Low moisture levels (0-50)
-                smi_score = avg_smi * 167  # 0.0->0, 0.3->50
+                smi_score = avg_smi * 167 # 0.0->0, 0.3->50
 
             # Modified drought frequency impact
             # More reasonable penalty for drought frequency
             # Reduce impact of drought frequency - many areas
             # experience drought but can still be drought resistant
-            freq_impact = drought_freq * 0.5  # Reduced multiplier
+            freq_impact = drought_freq * 0.5 # Reduced multiplier
 
             # Cap the penalty to allow higher scores
-            freq_impact = min(40.0, freq_impact)  # Maximum 40 point reduction
+            freq_impact = min(40.0, freq_impact) # Maximum 40 point reduction
 
             # Final historical score calculation
             historical_score = max(0.0, smi_score - freq_impact)
@@ -273,15 +224,15 @@ class DroughtResistanceMetric(BaseMetric):
             if 'green_percentage' in hexagon:
                 green_pct = hexagon['green_percentage']
                 # Higher vegetation coverage generally improves drought resistance
-                # But need to consider vegetation type (not available in this sample)
-                vegetation_score = min(100, green_pct * 1.3)  # 63% coverage = max score
+                # But need to consider vegetation type (not available in this version)
+                vegetation_score = min(100, green_pct * 1.3) # 63% coverage = max score
             elif 'green_space' in hexagon:
                 vegetation_score = hexagon['green_space']
             else:
                 # No vegetation data, rely solely on historical data
                 self.historical_weight = 1.0
                 self.vegetation_weight = 0.0
-                vegetation_score = 50  # Neutral value
+                vegetation_score = 50 # Neutral value
 
             # Calculate final score
             combined_score = (

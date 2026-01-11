@@ -1,6 +1,4 @@
-"""
-Measures the density of street intersections within each hexagon
-"""
+
 
 import geopandas as gpd
 import time
@@ -8,6 +6,9 @@ from src.metrics.base_metric import BaseMetric
 from config.settings import MAX_INTERSECTION_DENSITY
 
 class IntersectionDensity(BaseMetric):
+    """
+    Measures the density of street intersections within each hexagon
+    """
     def __init__(self, weight, data_manager=None):
         super().__init__("intersection_density", weight)
         self.data_manager = data_manager

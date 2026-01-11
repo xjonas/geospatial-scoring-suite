@@ -1,7 +1,3 @@
-"""
-Implementation of the Noise metric based on road characteristics and land use.
-Uses scientific models for noise propagation without requiring additional API calls.
-"""
 import time
 import numpy as np
 import pandas as pd
@@ -24,16 +20,7 @@ class NoiseMetric(BaseMetric):
     """
 
     def __init__(self, weight=1.0, data_manager=None):
-        """
-        Initialize noise metric.
 
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric in the final score
-        data_manager : DataManager, optional
-            Data manager instance for efficient data access
-        """
         super().__init__("noise_model", weight)
         self.data_manager = data_manager
 
@@ -65,13 +52,13 @@ class NoiseMetric(BaseMetric):
 
         # Speed adjustment factors (based on RLS-19 model)
         # Defines how much noise increases with speed compared to reference (50 km/h)
-        self.speed_coefficient = 10.0  # dB per doubling of speed
-        self.reference_speed = 50.0    # km/h
+        self.speed_coefficient = 10.0 # dB per doubling of speed
+        self.reference_speed = 50.0 # km/h
 
         # Distance attenuation coefficients
         # Based on simplified EU noise models (ISO 9613-2)
-        self.distance_coefficient = 20.0  # Spherical spreading: -20 dB per 10× distance
-        self.reference_distance = 10.0    # meters
+        self.distance_coefficient = 20.0 # Spherical spreading: -20 dB per 10× distance
+        self.reference_distance = 10.0 # meters
 
         # Traffic volume estimation based on road type (vehicles/hour)
         # Rough estimates for average daytime traffic
@@ -119,7 +106,7 @@ class NoiseMetric(BaseMetric):
         }
 
         # Maximum distances to consider
-        self.max_road_distance = 300.0  # meters (roads beyond this have negligible impact)
+        self.max_road_distance = 300.0 # meters (roads beyond this have negligible impact)
 
         # Heavy/light vehicle ratio estimation by road type (fraction of heavy vehicles)
         self.heavy_vehicle_ratio = {
@@ -149,19 +136,8 @@ class NoiseMetric(BaseMetric):
         }
 
     def _extract_speed_limit(self, speed_tag):
-        """
-        Extract numerical speed limit from OSM maxspeed tag.
+        #Extract numerical speed limit from OSM maxspeed tag.
 
-        Parameters:
-        -----------
-        speed_tag : str, list, or None
-            OSM maxspeed tag value
-
-        Returns:
-        --------
-        float:
-            Speed limit in km/h or self.reference_speed if unknown
-        """
         # Handle case where speed_tag is a list
         if isinstance(speed_tag, list):
             if not speed_tag:  # Empty list
@@ -181,38 +157,17 @@ class NoiseMetric(BaseMetric):
             except (ValueError, IndexError):
                 # Handle special values
                 if speed_tag == 'walk' or speed_tag == 'walking':
-                    return 7.0  # Walking speed in km/h
+                    return 7.0 # Walking speed in km/h
                 elif speed_tag == 'none' or speed_tag == 'unlimited':
                     # German default speed limits if not specified
-                    return 50.0  # Urban default
+                    return 50.0 # Urban default
                 return self.reference_speed
 
     def _calculate_road_noise(self, road_type, speed_limit, distance, surface=None):
-        """
-        Calculate estimated noise level from a road at a specific distance.
-
-        Implements a simplified version of the CNOSSOS-EU and RLS-19 models.
-
-        Parameters:
-        -----------
-        road_type : str
-            Type of road (highway tag from OSM)
-        speed_limit : float
-            Speed limit in km/h
-        distance : float
-            Distance from the road in meters
-        surface : str, optional
-            Road surface type
-
-        Returns:
-        --------
-        float:
-            Estimated noise level in dB
-        """
         # Get base noise level for this road type
         base_level = self.road_noise_levels.get(road_type, self.road_noise_levels['unknown'])
 
-        # Traffic volume adjustment
+        #Traffic volume adjustment
         traffic = self.traffic_volume.get(road_type, self.traffic_volume['unknown'])
         # 10 * log10(traffic/100) - normalized to 100 vehicles/hour
         traffic_adjustment = 10 * np.log10(max(traffic, 1) / 100)
@@ -249,19 +204,7 @@ class NoiseMetric(BaseMetric):
         return noise_level
 
     def _combine_noise_sources(self, noise_levels):
-        """
-        Combine multiple noise sources using logarithmic addition.
-
-        Parameters:
-        -----------
-        noise_levels : list
-            List of noise levels in dB
-
-        Returns:
-        --------
-        float:
-            Combined noise level in dB
-        """
+        # Combine multiple noise sources using logarithmic addition.
         if not noise_levels:
             return 0
 
@@ -270,21 +213,9 @@ class NoiseMetric(BaseMetric):
         return 10 * np.log10(linear_sum)
 
     def _noise_to_score(self, noise_level):
-        """
-        Convert noise level to a 0-100 score.
-
-        Higher scores mean quieter areas (better for walking).
-
-        Parameters:
-        -----------
-        noise_level : float
-            Noise level in dB
-
-        Returns:
-        --------
-        float:
-            Score between 0-100
-        """
+        # Convert noise level to a 0-100 score.
+        # Higher scores mean quieter areas (better for walking).
+       
         # Define thresholds based on WHO guidelines and German standards
         # <40dB: Excellent (100)
         # 40-45dB: Very Good (90-100)
@@ -319,23 +250,6 @@ class NoiseMetric(BaseMetric):
             return max(0, 20 - (noise_level - 80))
 
     def calculate(self, grid_gdf, graph=None, city_name=None, city_population=None):
-        """
-        Calculate noise score for each hexagon in the grid.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        graph : networkx.MultiDiGraph, optional
-            OSM graph containing road attributes
-        city_name : str, optional
-            Name of the city for data retrieval
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added noise score columns
-        """
         print("Calculating Noise metric...")
         start_time = time.time()
 
@@ -380,9 +294,9 @@ class NoiseMetric(BaseMetric):
 
         # Initialize noise columns
         grid_gdf[self.name] = 0.0
-        grid_gdf[f"{self.name}_level"] = 0.0  # Raw dB level
-        grid_gdf[f"{self.name}_road"] = 0.0   # Road noise component
-        grid_gdf[f"{self.name}_land"] = 0.0   # Land use noise component
+        grid_gdf[f"{self.name}_level"] = 0.0 # Raw dB level
+        grid_gdf[f"{self.name}_road"] = 0.0 # Road noise component
+        grid_gdf[f"{self.name}_land"] = 0.0 # Land use noise component
 
         # Create spatial indices for efficient calculations
         edges_sindex = self.data_manager.get_spatial_index(edges_gdf, "edges_noise") if self.data_manager else edges_gdf.sindex
@@ -515,14 +429,14 @@ class NoiseMetric(BaseMetric):
             # Define population tiers and their scaling factors
             # For small towns, reduce noise (increase score) due to less traffic
             population_tiers = {
-                1000: 2,        # Tiny towns (+50% score)
-                5000: 1.7,      # Very small towns (+30% score)
-                15000: 1.3,     # Small towns (+20% score)
-                50000: 1.05,     # Medium towns (+10% score)
-                100000: 1.0,    # Small cities (baseline)
-                500000: 0.95,   # Medium cities (-5% score)
-                1000000: 0.92,   # Large cities (-10% score)
-                float('inf'): 0.92  # Mega cities (-15% score)
+                1000: 2, # Tiny towns (+50% score)
+                5000: 1.7, # Very small towns (+30% score)
+                15000: 1.3, # Small towns (+20% score)
+                50000: 1.05, # Medium towns (+10% score)
+                100000: 1.0, # Small cities (baseline)
+                500000: 0.95, # Medium cities (-5% score)
+                1000000: 0.92, # Large cities (-10% score)
+                float('inf'): 0.92 # Mega cities (-15% score)
             }
 
             # Find appropriate scaling factor
@@ -540,9 +454,5 @@ class NoiseMetric(BaseMetric):
             grid_gdf[f"{self.name}_score"] = (grid_gdf[f"{self.name}_score"] * scaling_factor).clip(0, 100)
 
         print(f"Noise metric calculation complete. Total time: {time.time() - start_time:.2f} seconds")
-        print("-----DEBUG INFO-----")
-        print("Noise level score ranges:")
-        print(f"  Min: {grid_gdf[f"{self.name}_score"].min():.2f}, Max: {grid_gdf[f"{self.name}_score"].max():.2f}")
-        print("-----END DEBUG INFO-----")
 
         return grid_gdf

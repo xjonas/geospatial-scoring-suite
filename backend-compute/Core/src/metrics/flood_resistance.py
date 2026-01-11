@@ -1,7 +1,3 @@
-"""
-Implementation of the Flood Resistance metric based on topography and distance to water bodies.
-Uses existing elevation data and OpenStreetMap water features.
-"""
 
 import time
 import numpy as np
@@ -14,9 +10,9 @@ from config.settings import CHUNK_SIZE
 class FloodResistanceMetric(BaseMetric):
     """
     Metric that calculates flood resistance based on:
-    - Elevation and slope (60%)
-    - Distance to water bodies (30%)
-    - Green space coverage (10%)
+    - Elevation and slope (40%)
+    - Distance to water bodies (55%)
+    - Green space coverage (5%)
 
     Higher scores indicate better resistance to flooding (0-100 scale)
     """

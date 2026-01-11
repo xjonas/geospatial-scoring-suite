@@ -1,7 +1,4 @@
-"""
-Implementation of a Healthcare metric based on pharmacy accessibility and healthcare facilities.
-Uses Gemeindeschlüssel (GKZ) for accurate data matching.
-"""
+
 import pandas as pd
 import numpy as np
 import time
@@ -13,44 +10,25 @@ class HealthcareMetric(BaseMetric):
     """
     Metric that calculates healthcare accessibility based on:
     - Pharmacy accessibility (20%) - from poi_access metric
-    - Emergency room accessibility (50%) - from CSV data
-    - General practitioner accessibility (30%) - from CSV data
+    - Emergency room accessibility (50%) - from own data see csv file in data/input/
+    - General practitioner accessibility (30%) - from own data
 
     Data is mapped using Gemeindeschlüssel (GKZ) for accurate matching.
     """
 
     def __init__(self, weight=1.0, data_manager=None, healthcare_filepath="data/input/healthcareA_data.csv"):
-        """
-        Initialize healthcare metric.
-
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric (not used for walkability)
-        data_manager : DataManager
-            Data manager instance for efficient data access
-        healthcare_filepath : str
-            Path to healthcare data CSV
-        """
         super().__init__("healthcare", weight)
         self.data_manager = data_manager
         self.healthcare_filepath = healthcare_filepath
 
         # Component weights
-        self.pharmacy_weight = 0.2    # 20% pharmacy access
-        self.emergency_weight = 0.5   # 50% emergency room access
-        self.doctor_weight = 0.3      # 30% general practitioner access
+        self.pharmacy_weight = 0.2 # 20% pharmacy access
+        self.emergency_weight = 0.5 # 50% emergency room access
+        self.doctor_weight = 0.3 # 30% general practitioner access
 
     def _load_healthcare_data(self):
-        """
-        Load and process healthcare data from CSV.
-        No caching - direct load each time.
+        # No caching - direct load each time because data is small
 
-        Returns:
-        --------
-        DataFrame:
-            Processed healthcare data with normalized scores
-        """
         print("Loading healthcare data from CSV...")
 
         # Check if file exists
@@ -119,19 +97,8 @@ class HealthcareMetric(BaseMetric):
         return df
 
     def _get_gemeindeschluessel(self, city_name):
-        """
-        Retrieve the Gemeindeschlüssel (German municipality code) for a given city.
+        # Retrieve the Gemeindeschlüssel (German municipality code) for a given city.
 
-        Parameters:
-        -----------
-        city_name : str
-            Name of the city, e.g., "Hammelburg, Germany"
-
-        Returns:
-        --------
-        str:
-            The Gemeindeschlüssel if found, None otherwise
-        """
         # Use data manager for efficient API access
         if not self.data_manager:
             return None
@@ -146,8 +113,6 @@ class HealthcareMetric(BaseMetric):
         print(f"Getting Gemeindeschlüssel for city: {city_name}")
         try:
             import osmnx as ox
-            print("------API CALL OSM------")
-
             # First, get the bounding box for the city using OSMnx
             gdf = ox.geocode_to_gdf(city_name)
             bbox = gdf.total_bounds
@@ -209,21 +174,6 @@ class HealthcareMetric(BaseMetric):
             return None
 
     def calculate(self, grid_gdf, city_name=None):
-        """
-        Calculate healthcare score for each hexagon.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        city_name : str, optional
-            Name of the city for GKZ determination
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added healthcare metric column
-        """
         print("Calculating Healthcare metric...")
         start_time = time.time()
 
@@ -238,7 +188,6 @@ class HealthcareMetric(BaseMetric):
             grid_gdf[f"{self.name}_score"] = 50
             return grid_gdf
 
-        # Get city name from TEST_CITY if not provided
         if not city_name:
             from config.settings import TEST_CITY
             city_name = TEST_CITY.split(',')[0].strip()
@@ -317,7 +266,6 @@ class HealthcareMetric(BaseMetric):
         # Round to integers
         grid_gdf[f"{self.name}_score"] = grid_gdf[self.name].round().astype(int)
 
-        # Print final score ranges
         print(f"Final healthcare score range: {grid_gdf[self.name].min()} - {grid_gdf[self.name].max()}")
 
         print(f"Healthcare calculation complete. Total time: {time.time() - start_time:.2f} seconds")

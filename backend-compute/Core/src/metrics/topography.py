@@ -1,7 +1,4 @@
-"""
-Implementation of the Topography metric based on elevation data.
-Uses the OpenMeteo Elevation API with minimal API calls.
-"""
+
 import time
 import requests
 import numpy as np
@@ -18,16 +15,7 @@ class TopographyMetric(BaseMetric):
     """
 
     def __init__(self, weight=1.0, data_manager=None):
-        """
-        Initialize topography metric.
 
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric in the final score
-        data_manager : DataManager, optional
-            Data manager instance for efficient data access
-        """
         super().__init__("topography", weight)
         self.data_manager = data_manager
 
@@ -43,34 +31,20 @@ class TopographyMetric(BaseMetric):
         # Batch size for hexagon processing to improve memory efficiency
         self.batch_size = 100
 
-        # Slope thresholds and corresponding scores
+        # Slope thresholds in percentage and corresponding scores
         self.slope_scores = {
-            2: 100,    # 0-2% slope: Excellent walkability (score: 100)
-            5: 90,     # 2-5% slope: Very good walkability (score: 90)
-            8: 75,     # 5-8% slope: Good walkability (score: 75)
-            10: 60,    # 8-10% slope: Moderate walkability (score: 60)
-            15: 40,    # 10-15% slope: Difficult walking (score: 40)
-            20: 20,    # 15-20% slope: Very difficult walking (score: 20)
-            25: 10,    # 20-25% slope: Extremely difficult walking (score: 10)
-            100: 0     # >25% slope: Potentially inaccessible for walking (score: 0)
+            2: 100,  
+            5: 90,     
+            8: 75,     
+            10: 60,    
+            15: 40,    
+            20: 20,    
+            25: 10,    
+            100: 0     
         }
 
     def _generate_sampling_grid(self, bounds, resolution_m):
-        """
-        Generate a regular sampling grid for the entire region.
-
-        Parameters:
-        -----------
-        bounds : tuple
-            (minx, miny, maxx, maxy) in the grid's CRS
-        resolution_m : float
-            Desired resolution in meters
-
-        Returns:
-        --------
-        tuple:
-            (x_coords, y_coords, sampling_points)
-        """
+        # Generate a regular sampling grid for the entire region.    
         minx, miny, maxx, maxy = bounds
 
         # Calculate number of points
@@ -101,19 +75,8 @@ class TopographyMetric(BaseMetric):
         return x_coords, y_coords, sampling_points
 
     def _fetch_elevations_batch(self, coords_list, city_name=None):
-        """
-        Fetch elevations for a list of coordinates in batches.
+        # Fetch elevations for a list of coordinates in batches
 
-        Parameters:
-        -----------
-        coords_list : list
-            List of (lat, lon) tuples
-
-        Returns:
-        --------
-        dict:
-            Dictionary mapping (lat, lon) to elevation
-        """
         # Check if we can retrieve from cache
         cache_path = None
         if self.data_manager:
@@ -163,27 +126,6 @@ class TopographyMetric(BaseMetric):
         return elevation_map
 
     def _create_elevation_grid(self, sampling_points, elevation_map, transformer, x_coords, y_coords):
-        """
-        Create an elevation grid for bilinear interpolation.
-
-        Parameters:
-        -----------
-        sampling_points : list
-            List of (x, y) tuples in the grid's CRS
-        elevation_map : dict
-            Dictionary mapping (lat, lon) to elevation
-        transformer : Transformer
-            Transformer to convert from the grid's CRS to WGS84
-        x_coords : numpy.ndarray
-            X coordinates of the grid points
-        y_coords : numpy.ndarray
-            Y coordinates of the grid points
-
-        Returns:
-        --------
-        tuple:
-            (elevation_grid, interpolator)
-        """
         # Create 2D arrays for the elevation grid
         elevation_grid = np.zeros((len(y_coords), len(x_coords)))
 
@@ -209,23 +151,6 @@ class TopographyMetric(BaseMetric):
         return elevation_grid, interpolator
 
     def _calculate_slope(self, center_point, interpolator, resolution):
-        """
-        Calculate slope at a point using bilinear interpolation.
-
-        Parameters:
-        -----------
-        center_point : tuple
-            (x, y) coordinates of the point
-        interpolator : callable
-            Bilinear interpolation function
-        resolution : float
-            Sampling resolution in meters
-
-        Returns:
-        --------
-        float:
-            Maximum slope as a percentage
-        """
         x, y = center_point
 
         # Sample elevation at center point
@@ -233,10 +158,10 @@ class TopographyMetric(BaseMetric):
 
         # Sample elevations in cardinal directions
         points = [
-            (x + resolution, y),  # East
-            (x - resolution, y),  # West
-            (x, y + resolution),  # North
-            (x, y - resolution)   # South
+            (x + resolution, y), # East
+            (x - resolution, y), # West
+            (x, y + resolution), # North
+            (x, y - resolution) # South
         ]
 
         # Calculate slopes in each direction
@@ -245,7 +170,7 @@ class TopographyMetric(BaseMetric):
             try:
                 elev = interpolator([py, px])[0]
                 elevation_diff = abs(elev - center_elev)
-                slope = (elevation_diff / resolution) * 100  # Convert to percentage
+                slope = (elevation_diff / resolution) * 100 # Convert to percentage
                 slopes.append(slope)
             except Exception:
                 # Skip if point is outside the interpolation bounds
@@ -254,19 +179,6 @@ class TopographyMetric(BaseMetric):
         return max(slopes) if slopes else 0
 
     def _score_slope(self, slope):
-        """
-        Convert slope to walkability score.
-
-        Parameters:
-        -----------
-        slope : float
-            Slope as a percentage
-
-        Returns:
-        --------
-        float:
-            Walkability score (0-100)
-        """
         # Find appropriate score from thresholds
         for threshold, score in sorted(self.slope_scores.items()):
             if slope <= threshold:
@@ -276,21 +188,6 @@ class TopographyMetric(BaseMetric):
         return 0
 
     def calculate(self, grid_gdf, city_name=None):
-        """
-        Calculate topography score for each hexagon.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        city_name : str, optional
-            Name of the city
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added topography columns
-        """
         print("Calculating Topography metric...")
         start_time = time.time()
 
@@ -313,7 +210,7 @@ class TopographyMetric(BaseMetric):
         transformer = Transformer.from_crs(grid_gdf.crs, "EPSG:4326", always_xy=True)
 
         wgs84_points = []
-        xy_to_wgs84 = {}  # Mapping from (x,y) to (lat,lon)
+        xy_to_wgs84 = {} # Mapping from (x,y) to (lat,lon)
 
         for x, y in sampling_points:
             lon, lat = transformer.transform(x, y)

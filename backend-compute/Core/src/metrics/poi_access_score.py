@@ -1,7 +1,4 @@
-"""
-POI Access Score Calculation - Daily life amenities accessibility
-Calculates scores for access to essential amenities via various transportation modes (including car)
-"""
+
 import geopandas as gpd
 import pandas as pd
 import numpy as np
@@ -17,18 +14,6 @@ class POIAccessScore(BaseMetric):
     Separate from walkability metrics.
     """
     def __init__(self, weight=1.0, max_distance=6000, data_manager=None):
-        """
-        Initialize POI access score metric.
-
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric in the final score (not used in walkability)
-        max_distance : float
-            Maximum distance to consider for POI accessibility in meters (default: 5000m/5km)
-        data_manager : DataManager
-            Data manager instance for efficient data loading
-        """
         super().__init__("poi_access", weight)
         self.max_distance = max_distance
         self.data_manager = data_manager
@@ -71,30 +56,19 @@ class POIAccessScore(BaseMetric):
 
         # POI importance weights within categories (the most important types for each category)
         self.poi_importance = {
-            # Grocery - supermarkets are more important than specialty stores
             'supermarket': 1.0,
             'grocery': 1.0,
             'bakery': 0.5,
-
-            # Cafe - full restaurants more important than just ice cream
             'cafe': 1.0,
             'ice_cream': 0.9,
-
-            # Shopping - malls provide more options
             'mall': 0.9,
             'department_store': 0.9,
-
-            # Nightlife - cinema and theaters are major venues
             'cinema': 0.4,
             'theatre': 0.4,
             'nightclub': 0.7,
             'bar': 0.8,
             'pub': 0.7,
-
-            # Pharmacy - all pharmacies equally important
             'pharmacy': 1.0,
-
-            # Fitness - major facilities weighted higher
             'sports_centre': 0.8,
             'fitness_centre': 1.0
         }
@@ -106,31 +80,17 @@ class POIAccessScore(BaseMetric):
         # This creates a logarithmic decay that makes 5km roughly 20% as valuable as 0km
         self.distance_decay_factor = DISTANCE_DECAY_POI_ACCESS
 
-        # Distance thresholds for perfect scores and minimum scores
+        # Distance thresholds for perfect scores and minimum scores in meters
         self.perfect_distance = {
-            'grocery': 500,     # 1km to groceries is ideal
-            'cafe': 700,        # 1.5km to cafe/restaurant is ideal
-            'shopping': 1000,    # 3km to shopping is ideal
-            'nightlife': 3000,   # 5km to nightlife is ideal
-            'pharmacy': 1000,    # 1.5km to pharmacy is ideal
-            'fitness': 900      # 2km to fitness facilities is ideal
+            'grocery': 500,
+            'cafe': 700,
+            'shopping': 1000,
+            'nightlife': 3000,
+            'pharmacy': 1000,
+            'fitness': 900
         }
 
     def _load_pois_by_category(self, city_name):
-        """
-        Load POIs for each of our custom categories from OSM.
-        Uses data manager to efficiently load and cache data.
-
-        Parameters:
-        -----------
-        city_name : str
-            Name of the city
-
-        Returns:
-        --------
-        dict:
-            Dictionary with category names as keys and GeoDataFrames as values
-        """
         # Ensure we have a data manager
         if self.data_manager is None:
             from src.data_processing.data_manager import DataManager
@@ -189,22 +149,6 @@ class POIAccessScore(BaseMetric):
         return pois_by_category
 
     def _calculate_distance_factor(self, distance, category):
-        """
-        Calculate a score factor based on distance.
-        Uses an exponential decay function, calibrated for car/mixed transportation.
-
-        Parameters:
-        -----------
-        distance : float or array-like
-            Distance(s) to calculate factors for in meters
-        category : str
-            Category name to determine ideal distance threshold
-
-        Returns:
-        --------
-        float or array-like:
-            Distance factor(s) between 0 and 1
-        """
         # Get perfect distance threshold for this category
         perfect_dist = self.perfect_distance.get(category, 2000)  # Default 2km
 
@@ -228,21 +172,6 @@ class POIAccessScore(BaseMetric):
         return np.exp(-self.distance_decay_factor * (distance - perfect_dist))
 
     def _get_poi_weights(self, pois_df, category):
-        """
-        Calculate weights for POIs in a vectorized way.
-
-        Parameters:
-        -----------
-        pois_df : DataFrame
-            DataFrame containing POIs
-        category : str
-            Category name for these POIs
-
-        Returns:
-        --------
-        Series:
-            Series containing POI weights
-        """
         # Make sure the index is properly sorted to avoid PerformanceWarning
         if not pois_df.index.is_monotonic_increasing:
             pois_df = pois_df.sort_index()
@@ -269,21 +198,6 @@ class POIAccessScore(BaseMetric):
         return weights * cat_weight
 
     def calculate(self, grid_gdf, city_name):
-        """
-        Calculate POI access scores for each category and hexagon.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        city_name : str
-            Name of the city to fetch POIs for
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added poi_access columns for each category
-        """
         print(f"Calculating POI access scores for {city_name}...")
         start_time = time.time()
 
@@ -353,9 +267,7 @@ class POIAccessScore(BaseMetric):
                     possible_pois = pois_gdf.iloc[possible_pois_idxs]
 
                     # Calculate distances to POIs
-                    possible_pois = possible_pois.copy()  # Make a copy to avoid SettingWithCopyWarning
-
-                    # Use loc to avoid SettingWithCopyWarning
+                    possible_pois = possible_pois.copy() 
                     possible_pois.loc[:, 'distance'] = possible_pois.geometry.distance(centroid)
 
                     # Filter to POIs within max distance
@@ -378,7 +290,7 @@ class POIAccessScore(BaseMetric):
                     # Sum the scores and apply logarithmic scaling
                     raw_score = pois_in_range['score'].sum()
 
-                    # Determine scaling parameters based on POI count (more POIs → lower relative impact)
+                    # Determine scaling parameters based on POI count (more POIs means lower relative impact)
                     poi_count = len(pois_in_range)
 
                     if poi_count <= 3:

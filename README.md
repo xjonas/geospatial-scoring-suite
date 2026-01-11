@@ -8,7 +8,7 @@ A modular geospatial analysis platform that calculates location-based scores acr
 
 Traditional geospatial analysis often relies on administrative boundaries (districts, postal codes), which creates artificial discontinuities in data. This project takes a different approach: it overlays a continuous hexagonal grid across the target area and computes metrics per hexagon. The result is a more granular and spatially consistent representation of location quality.
 
-The scoring engine aggregates data from multiple sources—OpenStreetMap, environmental agencies, satellite imagery, and official statistics—and distills it into normalized 0–100 scores for walkability, climate resilience, livability, and related dimensions.
+The scoring engine aggregates data from multiple sources — OpenStreetMap, environmental agencies, satellite imagery, and official statistics — and distills it into normalized 0–100 scores for walkability, climate resilience, livability, and related dimensions.
 
 ## Architecture
 

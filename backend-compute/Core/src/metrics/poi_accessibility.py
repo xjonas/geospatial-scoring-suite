@@ -1,6 +1,4 @@
-"""
-POI Accessibility Calculation Algorithm - Optimized Implementation
-"""
+
 import geopandas as gpd
 import pandas as pd
 import numpy as np
@@ -8,6 +6,7 @@ from src.metrics.base_metric import BaseMetric
 from shapely.geometry import Point
 import time
 from config.settings import DISTANCE_DECAY_EXPONENT, CHUNK_SIZE
+from src.data_processing.data_manager import DataManager
 
 class POIAccessibility(BaseMetric):
     """
@@ -15,18 +14,7 @@ class POIAccessibility(BaseMetric):
     Optimized implementation with improved data handling.
     """
     def __init__(self, weight=1.0, max_distance=1200, data_manager=None):
-        """
-        Initialize POI accessibility metric.
 
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric in the final score
-        max_distance : float
-            Maximum distance to consider for POI accessibility
-        data_manager : DataManager
-            Data manager instance for efficient data loading
-        """
         super().__init__("poi_accessibility", weight)
         self.max_distance = max_distance
         self.data_manager = data_manager  # Store data manager reference
@@ -34,7 +22,6 @@ class POIAccessibility(BaseMetric):
         # Define POI categories and their importance weights
         # Categories are grouped by type for easier management
         self.poi_categories = {
-            # Food and drink
             'amenity': [
                 'cafe',
                 'restaurant',
@@ -45,7 +32,6 @@ class POIAccessibility(BaseMetric):
                 'university',
                 'school'
             ],
-            # Shopping
             'shop': [
                 'bakery',
                 'supermarket',
@@ -53,7 +39,6 @@ class POIAccessibility(BaseMetric):
                 'mall',
                 'department_store'
             ],
-            # Leisure
             'leisure': [
                 'fitness_centre',
                 'sports_centre',
@@ -68,26 +53,19 @@ class POIAccessibility(BaseMetric):
 
         # Importance weights for each category group
         self.category_group_weights = {
-            'amenity': 0.5,      # Food and drink
-            'shop': 0.7,        # Shopping
-            'leisure': 0.6      # Leisure
+            'amenity': 0.5,
+            'shop': 0.7,
+            'leisure': 0.6
         }
 
         # Importance weights for specific POIs
         # Higher weights for more important or frequently used POIs
         self.poi_importance_weights = {
-            # Food and drink
             'cafe': 0.8,
             'restaurant': 0.2,
-
-            # Services
             'pharmacy': 0.7,
-
-            # Shopping
             'supermarket': 1.0,
             'bakery': 0.8,
-
-            # Leisure
             'sports_centre': 0.8,
             'fitness_centre': 0.8,
             'playground': 0.7,
@@ -98,26 +76,6 @@ class POIAccessibility(BaseMetric):
         self.default_poi_weight = 0.6
 
     def _load_all_pois(self, city_name):
-        """
-        Load all POIs for a city from OpenStreetMap based on defined categories.
-        Uses the data manager for efficient loading and caching.
-
-        Parameters:
-        -----------
-        city_name : str
-            Name of the city
-
-        Returns:
-        --------
-        GeoDataFrame:
-            GeoDataFrame containing all POIs
-        """
-        import geopandas as gpd
-        import pandas as pd
-        import time
-        from src.data_processing.data_manager import DataManager
-
-        # Ensure we have a data manager
         if self.data_manager is None:
             self.data_manager = DataManager()
 
@@ -157,38 +115,11 @@ class POIAccessibility(BaseMetric):
         return pois_gdf
 
     def _calculate_distance_factor(self, distance):
-        """
-        Calculate a score factor based on distance.
-        Uses an exponential decay function to prioritize closer POIs.
-
-        Parameters:
-        -----------
-        distance : float or array-like
-            Distance(s) to calculate factors for
-
-        Returns:
-        --------
-        float or array-like:
-            Distance factor(s)
-        """
-        # Exponential decay function
-        decay_factor = DISTANCE_DECAY_EXPONENT  # Controls how quickly the score decreases with distance
+        # Uses an exponential decay function to prioritize closer POIs.
+        decay_factor = DISTANCE_DECAY_EXPONENT  
         return np.exp(-decay_factor * distance)
 
     def _get_poi_weights(self, pois_df):
-        """
-        Calculate weights for POIs in a vectorized way.
-
-        Parameters:
-        -----------
-        pois_df : DataFrame
-            DataFrame containing POIs
-
-        Returns:
-        --------
-        Series:
-            Series containing POI weights
-        """
         # Create a series of default weights
         weights = pd.Series(self.default_poi_weight, index=pois_df.index)
 
@@ -205,21 +136,6 @@ class POIAccessibility(BaseMetric):
         return weights * group_weights
 
     def calculate(self, grid_gdf, city_name):
-        """
-        Calculate POI accessibility score for each hexagon using vectorized operations.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        city_name : str
-            Name of the city to fetch POIs for
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added poi_accessibility column
-        """
         print(f"Calculating POI accessibility for {city_name}...")
         start_time = time.time()
 
@@ -251,7 +167,7 @@ class POIAccessibility(BaseMetric):
         for category_group in self.category_group_weights.keys():
             grid_gdf[f"{self.name}_{category_group}"] = 0.0
 
-        # Pre-calculate POI weights for all POIs once (vectorized operation)
+        # Pre-calculate POI weights for all POIs once 
         pois_gdf['weight'] = self._get_poi_weights(pois_gdf)
 
         print(f"Starting accessibility calculations for {len(grid_gdf)} hexagons...")
@@ -269,7 +185,7 @@ class POIAccessibility(BaseMetric):
 
         for chunk_start in range(0, total_hexagons, chunk_size):
             chunk_end = min(chunk_start + chunk_size, total_hexagons)
-            chunk = grid_gdf.iloc[chunk_start:chunk_end].copy()  # Make a copy to avoid warning
+            chunk = grid_gdf.iloc[chunk_start:chunk_end].copy()  
 
             # Create buffer geometries for this chunk (more memory efficient than all at once)
             buffers = [Point(row.centroid_x, row.centroid_y).buffer(self.max_distance)
@@ -292,15 +208,15 @@ class POIAccessibility(BaseMetric):
                 if pois_in_range.empty:
                     continue
 
-                # Calculate distances from hexagon centroid to POIs (vectorized operation)
+                # Calculate distances from hexagon centroid to POIs 
                 point = Point(hexagon.centroid_x, hexagon.centroid_y)
-                pois_in_range = pois_in_range.copy()  # Make a copy to avoid warning
+                pois_in_range = pois_in_range.copy()  
                 pois_in_range['distance'] = pois_in_range.geometry.distance(point)
 
-                # Calculate distance factors (vectorized operation)
+                # Calculate distance factors 
                 pois_in_range['distance_factor'] = self._calculate_distance_factor(pois_in_range['distance'])
 
-                # Calculate POI scores (vectorized operation)
+                # Calculate POI scores 
                 pois_in_range['score'] = pois_in_range['distance_factor'] * pois_in_range['weight']
 
                 # Update total score for this hexagon

@@ -1,7 +1,4 @@
-"""
-Implementation of the infrastructure quality and safety metric - Optimized Version.
-All API calls centralized through DataManager.
-"""
+
 import pandas as pd
 import geopandas as gpd
 import numpy as np
@@ -19,25 +16,12 @@ class InfrastructureSafety(BaseMetric):
     - Speed limits of adjacent roads
     - Presence of pedestrian infrastructure
     - Barriers and obstacles
-
-    Optimized implementation with vectorized operations where possible.
     """
 
     def __init__(self, weight=1.0, data_manager=None):
-        """
-        Initialize infrastructure quality metric.
-
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric in the final score (default: 1.0)
-        data_manager : DataManager
-            Data manager instance for efficient data loading
-        """
         super().__init__("infrastructure_safety", weight)
         self.data_manager = data_manager
 
-        # Define scoring weights for different attributes
         self.surface_scores = {
             # Good surfaces (high score)
             'paved': 1.0,
@@ -72,8 +56,8 @@ class InfrastructureSafety(BaseMetric):
             'path': 0.8,
             'sidewalk': 0.9,
             'crossing': 0.9,
-            'steps': 0.6,  # Lower score for accessibility reasons
-            'cycleway': 0.7,  # Shared with bicycles
+            'steps': 0.6, # Lower score for accessibility reasons
+            'cycleway': 0.7, # Shared with bicycles
             'track': 0.7,
             'service': 0.6,
             'living_street': 0.9,
@@ -87,7 +71,7 @@ class InfrastructureSafety(BaseMetric):
         # Speed limit impact (higher speeds = lower pedestrian safety)
         # Key = speed limit in km/h, Value = safety score
         self.speed_limit_scores = {
-            0: 1.0,    # Pedestrian only
+            0: 1.0, # Pedestrian only
             5: 0.95,
             10: 0.9,
             20: 0.85,
@@ -116,19 +100,8 @@ class InfrastructureSafety(BaseMetric):
         }
 
     def _extract_speed_limit(self, speed_tag):
-        """
-        Extract numerical speed limit from OSM maxspeed tag.
+        #Extract numerical speed limit from OSM maxspeed tag.
 
-        Parameters:
-        -----------
-        speed_tag : str, list, or None
-            OSM maxspeed tag value
-
-        Returns:
-        --------
-        int:
-            Speed limit in km/h or -1 if unknown
-        """
         # Handle case where speed_tag is a list
         if isinstance(speed_tag, list):
             if not speed_tag:  # Empty list
@@ -154,19 +127,8 @@ class InfrastructureSafety(BaseMetric):
                 return -1
 
     def _get_nearest_speed_limit_score(self, speed):
-        """
-        Get the safety score for the nearest defined speed limit.
+        #Get the safety score for the nearest defined speed limit.
 
-        Parameters:
-        -----------
-        speed : int
-            Speed limit in km/h
-
-        Returns:
-        --------
-        float:
-            Safety score
-        """
         if speed in self.speed_limit_scores:
             return self.speed_limit_scores[speed]
 
@@ -192,20 +154,8 @@ class InfrastructureSafety(BaseMetric):
         return lower_score + proportion * (upper_score - lower_score)
 
     def _preprocess_edges(self, edges_gdf):
-        """
-        Preprocess edge data to extract and normalize attributes.
+        #Preprocess edge data to extract and normalize attributes.
 
-        Parameters:
-        -----------
-        edges_gdf : GeoDataFrame
-            GeoDataFrame of network edges
-
-        Returns:
-        --------
-        edges_gdf : GeoDataFrame
-            Preprocessed edges with calculated scores
-        """
-        # Make a copy to avoid modifying the original
         edges = edges_gdf.copy()
 
         # Add length column if not already present
@@ -266,21 +216,6 @@ class InfrastructureSafety(BaseMetric):
         return edges
 
     def calculate(self, grid_gdf, graph):
-        """
-        Calculate infrastructure quality score for each hexagon using optimized methods.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        graph : networkx.MultiDiGraph
-            OSM graph containing edge attributes
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added infrastructure_quality column
-        """
         print("Calculating Infrastructure Safety metric...")
         start_time = time.time()
 
@@ -295,12 +230,6 @@ class InfrastructureSafety(BaseMetric):
         elif hasattr(graph, 'edges'):
             # Get edges from network using data_manager's graph_to_gdfs instead of get_simplified_intersections
             _, edges_gdf = self.data_manager.graph_to_gdfs(graph)
-            '''# It's a network graph, use DataManager to convert
-            _, edges_gdf = self.data_manager.get_simplified_intersections(
-                city_name=None,  # Not needed when we already have a graph
-                tolerance=5,      # Default tolerance
-                network_type="walk"
-            )'''
         else:
             # Direct conversion as fallback
             import osmnx as ox
@@ -336,7 +265,7 @@ class InfrastructureSafety(BaseMetric):
         calc_start = time.time()
 
         # Process in chunks to reduce memory usage
-        chunk_size = 200  # Adjust based on dataset size
+        chunk_size = 200 
 
         # Get all unique hexagon IDs from the join
         hexagon_ids = joined['id'].unique()
@@ -352,10 +281,9 @@ class InfrastructureSafety(BaseMetric):
 
             for hexagon_id, group in grouped:
                 # Check if enough data is available
-                if len(group) < 3:  # Require at least 3 road segments for reliable scoring
+                if len(group) < 3: # Require at least 3 road segments for reliable scoring
                     continue
 
-                # Calculate score for this hexagon using vectorized operations
 
                 # Get relevant scores
                 surface_scores = group['surface_score']

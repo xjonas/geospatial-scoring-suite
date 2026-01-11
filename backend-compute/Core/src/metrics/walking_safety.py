@@ -1,7 +1,4 @@
-"""
-Implementation of the Safety metric based on pedestrian accident data and crime rates.
-Analyzes accident density and crime statistics per hexagon to determine pedestrian safety scores.
-"""
+
 import os
 import pandas as pd
 import geopandas as gpd
@@ -24,22 +21,6 @@ class SafetyMetric(BaseMetric):
                  accident_filepath="data/input/PedestrianAccidents_2019_2023.csv",
                  crime_filepath="data/input/crime_data_with_population.csv",
                  plz_kreis_filepath="data/input/plz_kreis_data.csv"):
-        """
-        Initialize safety metric.
-
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric in the final score
-        data_manager : DataManager
-            Data manager instance for efficient data access
-        accident_filepath : str
-            Path to the pedestrian accident CSV data
-        crime_filepath : str
-            Path to the crime statistics CSV data
-        plz_kreis_filepath : str
-            Path to the PLZ to Kreis mapping data
-        """
         super().__init__("walking_safety", weight)
         self.data_manager = data_manager
         self.accident_filepath = accident_filepath
@@ -51,16 +32,6 @@ class SafetyMetric(BaseMetric):
         self.crime_weight = 0.4     # 40% crime rate
 
     def _load_accident_data(self, city_name=None):
-        """
-        Load and process accident data from CSV.
-        Uses caching through data manager if available.
-
-        Returns:
-        --------
-        GeoDataFrame:
-            Processed accident data with geometries
-        """
-        # Try to get from cache if data manager is available
         if self.data_manager:
             cache_path = self.data_manager._get_cache_path("processed", "", f"accident_data_{city_name}")
 
@@ -70,15 +41,14 @@ class SafetyMetric(BaseMetric):
         print("Loading accident data from CSV...")
         start_time = time.time()
 
-        # Verify file exists
         if not os.path.exists(self.accident_filepath):
             print(f"Warning: Accident data file not found: {self.accident_filepath}")
             return gpd.GeoDataFrame([], geometry=[], crs="EPSG:4326")
 
-        # Load CSV data
+        # Load CSV data see 
         df = pd.read_csv(self.accident_filepath)
 
-        # Handle decimal comma format (German locale) by replacing commas with dots
+        # Handle decimal comma format by replacing commas with dots
         df['XGCSWGS84'] = df['XGCSWGS84'].str.replace(',', '.')
         df['YGCSWGS84'] = df['YGCSWGS84'].str.replace(',', '.')
 
@@ -111,16 +81,6 @@ class SafetyMetric(BaseMetric):
         return accidents_gdf
 
     def _load_crime_data(self, city_name=None):
-        """
-        Load and process crime data from CSV.
-        Uses caching through data manager if available.
-
-        Returns:
-        --------
-        DataFrame:
-            Processed crime data with normalized scores
-        """
-        # Try to get from cache if data manager is available
         if self.data_manager:
             cache_path = self.data_manager._get_cache_path("processed", "", f"crime_data_{city_name}")
 
@@ -130,7 +90,6 @@ class SafetyMetric(BaseMetric):
         print("Loading crime data from CSV...")
         start_time = time.time()
 
-        # Verify file exists
         if not os.path.exists(self.crime_filepath):
             print(f"Warning: Crime data file not found: {self.crime_filepath}")
             return pd.DataFrame()
@@ -138,7 +97,7 @@ class SafetyMetric(BaseMetric):
         # Load CSV data
         df = pd.read_csv(self.crime_filepath)
 
-        # Ensure 'Name' and 'Type' columns exist
+        # Ensure columns exist
         required_columns = ['Name', 'Type', 'Total_Crime_Rate']
         if not all(col in df.columns for col in required_columns):
             print(f"Warning: Crime data missing required columns. Required: {required_columns}, Found: {df.columns}")
@@ -157,9 +116,8 @@ class SafetyMetric(BaseMetric):
                                                   (max_crime_rate - min_crime_rate)) * 80
             else:
                 print("Warning: All regions have the same crime rate. Assigning default score of 70.")
-                df['crime_safety_score'] = 70  # If all regions have same crime rate
+                df['crime_safety_score'] = 70 # If all regions have same crime rate
         else:
-            # Empty dataframe
             df['crime_safety_score'] = 0
 
         print(f"Processed crime data for {len(df)} regions in {time.time() - start_time:.2f} seconds")
@@ -171,23 +129,8 @@ class SafetyMetric(BaseMetric):
         return df
 
     def _get_region_for_hexagon(self, hexagon_id, city_name, city_plz=None):
-        """
-        Determine the appropriate region (Kreis, City, etc.) for a hexagon.
+        # Determine the appropriate region (Kreis, City, etc.) for a hexagon.
 
-        Parameters:
-        -----------
-        hexagon_id : str
-            ID of the hexagon
-        city_name : str
-            Name of the city
-        city_plz : str, optional
-            Postal code of the city
-
-        Returns:
-        --------
-        tuple:
-            (region_name, region_type) for the hexagon
-        """
         # If no city_plz provided, try to get it from settings
         if not city_plz:
             try:
@@ -219,35 +162,14 @@ class SafetyMetric(BaseMetric):
             return city_name, "City"
 
     def calculate(self, grid_gdf, accident_data=None, crime_data=None, city_name=None):
-        """
-        Calculate safety score for each hexagon based on accident density and crime rates.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        accident_data : GeoDataFrame, optional
-            Pre-loaded accident data (if not provided, will be loaded from file)
-        crime_data : DataFrame, optional
-            Pre-loaded crime data (if not provided, will be loaded from file)
-        city_name : str, optional
-            Name of the city for region determination
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added safety metric column
-        """
         print("Calculating Walkabiilty Safety metric (accidents + crime rates)...")
         start_time = time.time()
 
-        # Make a copy of the grid to avoid modifying the original
         grid_gdf = grid_gdf.copy()
 
-        # Get city name from TEST_CITY if not provided
         if not city_name:
             from config.settings import TEST_CITY
-            city_name = TEST_CITY.split(',')[0].strip()  # Extract just the city name part
+            city_name = TEST_CITY.split(',')[0].strip() # Extract just the city name part
 
         # Try to get PLZ from settings
         try:
@@ -265,8 +187,6 @@ class SafetyMetric(BaseMetric):
         grid_gdf['region_type'] = ""
 
         # 1. Calculate Accident-based Safety Score (60%)
-        # --------------------------------------------
-        # Load accident data if not provided
         if accident_data is None:
             accident_data = self._load_accident_data(city_name)
 
@@ -297,8 +217,6 @@ class SafetyMetric(BaseMetric):
             grid_gdf['accident_safety_score'] = 75  # Moderate default value
 
         # 2. Calculate Crime-based Safety Score (40%)
-        # ------------------------------------------
-        # Load crime data if not provided
         if crime_data is None:
             crime_data = self._load_crime_data(city_name)
 
@@ -347,8 +265,6 @@ class SafetyMetric(BaseMetric):
             grid_gdf['region_type'] = "Unknown"
 
         # 3. Calculate Combined Safety Score
-        # ---------------------------------
-        # Weighted average of accident safety (60%) and crime safety (40%)
         grid_gdf[self.name] = (
                 self.accident_weight * grid_gdf['accident_safety_score'] +
                 self.crime_weight * grid_gdf['crime_safety_score']
@@ -358,11 +274,5 @@ class SafetyMetric(BaseMetric):
         grid_gdf[f"{self.name}_score"] = grid_gdf[self.name].round().astype(int)
 
         print(f"Safety calculation complete. Total time: {time.time() - start_time:.2f} seconds")
-        # Debug prints for verification
-        #print(f"\nSafety Metric Debug Information:")
-        #print(f"Region: {grid_gdf['region_name'].iloc[0]} ({grid_gdf['region_type'].iloc[0]})")
-        #print(f"Accident-based safety score range: {grid_gdf['accident_safety_score'].min():.1f} - {grid_gdf['accident_safety_score'].max():.1f}")
-        #print(f"Crime-based safety score: {grid_gdf['crime_safety_score'].iloc[0]:.1f}")
-        #print(f"Combined safety score range: {grid_gdf[self.name].min():.1f} - {grid_gdf[self.name].max():.1f}")
 
         return grid_gdf

@@ -1,7 +1,3 @@
-"""
-Implementation of the ForestFire risk metric.
-Combines historical Bundesland-level fire data with local vegetation factors.
-"""
 import time
 import numpy as np
 import pandas as pd
@@ -11,26 +7,16 @@ from src.metrics.base_metric import BaseMetric
 class ForestFireRiskMetric(BaseMetric):
     """
     Metric that calculates forest fire risk based on:
-    - Historical fire data at Bundesland level (60%)
-    - Local vegetation density from already loaded data (40%)
+    - Historical fire data at Bundesland level (50%)
+    - Local vegetation density from already loaded data (50%)
     """
 
     def __init__(self, weight=1.0, data_manager=None):
-        """
-        Initialize forest fire risk metric.
 
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric (not used for overall walkability)
-        data_manager : DataManager
-            Data manager instance for efficient data access
-        """
         super().__init__("forest_fire_resistance", weight)
         self.data_manager = data_manager
 
-        # Historical fire data by bundesland (2019-2023)
-        # Format: {bundesland: {'avg_fires': float, 'avg_area': float, 'trend': float}}
+        # Historical fire data by bundesland (2019-2023) https://www.ble.de/DE/BZL/Daten-Berichte/Wald/wald_node.html
         self.fire_data = {
             'baden-württemberg': {'avg_fires': 57.4, 'avg_area': 13.84, 'trend': 0.2},
             'bayern': {'avg_fires': 95.4, 'avg_area': 92.72, 'trend': -0.1},
@@ -51,12 +37,12 @@ class ForestFireRiskMetric(BaseMetric):
         }
 
         # Component weights
-        self.historical_weight = 0.5     # 50% historical data
-        self.vegetation_weight = 0.5     # 50% vegetation factors
+        self.historical_weight = 0.5    
+        self.vegetation_weight = 0.5    
 
         # Vegetation type risk factors (on a scale of 0-1)
         self.vegetation_risk = {
-            'forest': 1.0,  # Highest risk
+            'forest': 1.0, # Highest risk
             'wood': 0.85,
             'grass': 0.4,
             'scrub': 0.7,
@@ -69,19 +55,6 @@ class ForestFireRiskMetric(BaseMetric):
         }
 
     def _calculate_historical_risk(self, bundesland):
-        """
-        Calculate risk based on historical fire data.
-
-        Parameters:
-        -----------
-        bundesland : str
-            Name of the Bundesland
-
-        Returns:
-        --------
-        float:
-            Risk score from 0-100
-        """
         # Default score if bundesland not found
         if bundesland is None or bundesland not in self.fire_data:
             return 50.0
@@ -91,16 +64,16 @@ class ForestFireRiskMetric(BaseMetric):
 
         # Calculate score based on average fires (40%)
         # Normalize across all Bundesländer (Brandenburg has highest)
-        max_fires = 350.0  # Slightly above Brandenburg's average
+        max_fires = 350.0 # Slightly above Brandenburg's average
         fire_count_score = min(100.0, (data['avg_fires'] / max_fires) * 100)
 
         # Calculate score based on average area (40%)
         # Normalize across all Bundesländer
-        max_area = 800.0  # Slightly above Brandenburg's average
+        max_area = 800.0 # Slightly above Brandenburg's average
         area_score = min(100.0, (data['avg_area'] / max_area) * 100)
 
         # Trend factor (20%) - increasing trends increase risk
-        trend_score = 50 + (data['trend'] * 100)  # Convert -0.2 to +0.2 to 30-70 range
+        trend_score = 50 + (data['trend'] * 100) # Convert -0.2 to +0.2 to 30-70 range
 
         # Combine scores
         historical_score = (fire_count_score * 0.4) + (area_score * 0.4) + (trend_score * 0.2)
@@ -108,19 +81,6 @@ class ForestFireRiskMetric(BaseMetric):
         return historical_score
 
     def _calculate_vegetation_risk(self, hexagon):
-        """
-        Calculate risk based on vegetation cover and type using existing data.
-
-        Parameters:
-        -----------
-        hexagon : GeoSeries
-            Hexagon geometry and data
-
-        Returns:
-        --------
-        float:
-            Risk score from 0-100
-        """
         # Default moderate risk if no vegetation data
         risk_score = 50.0
 
@@ -151,25 +111,9 @@ class ForestFireRiskMetric(BaseMetric):
         return risk_score
 
     def calculate(self, grid_gdf, city_name=None):
-        """
-        Calculate forest fire risk score for each hexagon.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        city_name : str, optional
-            Name of the city for Bundesland determination
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added forest fire risk column
-        """
         print("Calculating Forest Fire Risk metric...")
         start_time = time.time()
 
-        # Make a copy of the grid to avoid modifying the original
         grid_gdf = grid_gdf.copy()
 
         # Get Bundesland from settings
@@ -179,7 +123,7 @@ class ForestFireRiskMetric(BaseMetric):
             print(f"Using Bundesland: {bundesland}")
         except ImportError:
             print("BUNDESLAND not defined in settings, using default")
-            bundesland = "bayern"  # Default if not specified
+            bundesland = "bayern" # Default if not specified
 
         # Get historical risk score for this Bundesland
         historical_score = self._calculate_historical_risk(bundesland)

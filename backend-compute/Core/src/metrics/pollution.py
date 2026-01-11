@@ -1,7 +1,4 @@
-"""
-Implementation of the Pollution metric based on air quality data.
-Uses a grid-based sampling approach to minimize API calls.
-"""
+
 import time
 import pandas as pd
 import numpy as np
@@ -15,20 +12,11 @@ from shapely.geometry import Point
 class PollutionMetric(BaseMetric):
     """
     Metric that calculates air pollution scores based on multiple factors.
-    Optimized for efficiency with Open-Meteo's 11km resolution data.
+    Uses a grid-based sampling approach to minimize API calls.
     """
 
     def __init__(self, weight=1.0, data_manager=None):
-        """
-        Initialize pollution metric.
 
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric in the final score
-        data_manager : DataManager, optional
-            Data manager instance for efficient data access
-        """
         super().__init__("pollution", weight)
         self.data_manager = data_manager
 
@@ -41,11 +29,11 @@ class PollutionMetric(BaseMetric):
 
         # WHO thresholds based on 2021 guidelines
         self.who_thresholds = {
-            "pm2_5": 15,            # Short-term guideline (24h)
-            "pm10": 45,             # Short-term guideline (24h)
-            "nitrogen_dioxide": 25,  # Short-term guideline (24h)
-            "ozone": 100,           # 8-hour guideline
-            "sulphur_dioxide": 40    # 24-hour guideline
+            "pm2_5": 15, # Short-term guideline (24h)
+            "pm10": 45, # Short-term guideline (24h)
+            "nitrogen_dioxide": 25, # Short-term guideline (24h)
+            "ozone": 100, # 8-hour guideline
+            "sulphur_dioxide": 40 # 24-hour guideline
         }
 
         # List of pollutants to request
@@ -61,21 +49,8 @@ class PollutionMetric(BaseMetric):
         self.pollution_data_cache = {}
 
     def _generate_sampling_grid(self, bounds, crs):
-        """
-        Generate a grid of sampling points at Open-Meteo's resolution.
+        # Generate a grid of sampling points at Open-Meteo's resolution.
 
-        Parameters:
-        -----------
-        bounds : tuple
-            (minx, miny, maxx, maxy) bounds in the grid's CRS
-        crs : CRS
-            Coordinate reference system of the bounds
-
-        Returns:
-        --------
-        list:
-            List of (latitude, longitude) tuples for sampling points
-        """
         from pyproj import Transformer
 
         # Extract bounds
@@ -85,8 +60,8 @@ class PollutionMetric(BaseMetric):
         transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
 
         # Calculate grid step size in meters (EPSG:3035 uses meters)
-        # Open-Meteo resolution is 11km = 11,000 meters
-        step_size = self.resolution_km * 1000  # 11,000 meters
+        # Open-Meteo resolution is 11km 
+        step_size = self.resolution_km * 1000 # meters
 
         # Generate grid points
         sampling_points = []
@@ -103,31 +78,16 @@ class PollutionMetric(BaseMetric):
         return sampling_points
 
     def _fetch_pollution_data(self, latitude, longitude):
-        """
-        Fetch air quality data for a specific location.
-        Uses caching to avoid redundant API calls.
+        # Fetch air quality data for a specific location.
+        # Uses caching to avoid redundant API calls.
 
-        Parameters:
-        -----------
-        latitude : float
-            Location latitude
-        longitude : float
-            Location longitude
-
-        Returns:
-        --------
-        pandas.DataFrame:
-            DataFrame with hourly pollution data
-        """
         # Round coordinates to reduce redundant API calls
-        # 3 decimal places ≈ 111 meters at the equator
+        # 3 decimal places  is about 111 meters at the equator
         cache_key = f"{round(latitude, 3)}_{round(longitude, 3)}"
 
-        # Check memory cache first
         if cache_key in self.pollution_data_cache:
             return self.pollution_data_cache[cache_key]
 
-        # Then check data manager cache if available
         if self.data_manager:
             cache_path = self.data_manager._get_cache_path(
                 "processed", "", f"pollution_{cache_key}_{self.start_date}_{self.end_date}"
@@ -188,19 +148,6 @@ class PollutionMetric(BaseMetric):
             }
 
     def _process_pollution_data(self, df):
-        """
-        Process pollution data and calculate scores.
-
-        Parameters:
-        -----------
-        df : pandas.DataFrame
-            DataFrame with pollution data
-
-        Returns:
-        --------
-        dict:
-            Dictionary with scores and pollutant data
-        """
         if df.empty:
             return {
                 "final_score": 50,
@@ -299,21 +246,7 @@ class PollutionMetric(BaseMetric):
         }
 
     def _find_nearest_point(self, point, sampling_points_data):
-        """
-        Find the nearest sampling point with data.
 
-        Parameters:
-        -----------
-        point : tuple
-            (latitude, longitude) tuple
-        sampling_points_data : dict
-            Dictionary of sampling points and their data
-
-        Returns:
-        --------
-        tuple:
-            (nearest point key, distance)
-        """
         lat, lon = point
         nearest_key = None
         min_distance = float('inf')
@@ -331,21 +264,7 @@ class PollutionMetric(BaseMetric):
         return nearest_key, min_distance
 
     def calculate(self, grid_gdf, city_name=None):
-        """
-        Calculate pollution score for each hexagon in the grid.
 
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        city_name : str, optional
-            Name of the city (used for logging only)
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added pollution score columns
-        """
         print(f"Calculating Pollution metric for {city_name or 'unknown area'}...")
         start_time = time.time()
 

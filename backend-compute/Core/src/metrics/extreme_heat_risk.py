@@ -1,7 +1,4 @@
-"""
-Implementation of the Extreme Heat Risk metric based on green space coverage and future temperature projections.
-Uses the Open-Meteo Climate API with minimal API calls (10km resolution grid).
-"""
+
 import time
 import requests
 import numpy as np
@@ -21,16 +18,6 @@ class ExtremeHeatRiskMetric(BaseMetric):
     """
 
     def __init__(self, weight=1.0, data_manager=None):
-        """
-        Initialize extreme heat risk metric.
-
-        Parameters:
-        -----------
-        weight : float
-            Weight of the metric in the final score
-        data_manager : DataManager, optional
-            Data manager instance for efficient data access
-        """
         super().__init__("extreme_heat_resistance", weight)
         self.data_manager = data_manager
 
@@ -51,50 +38,36 @@ class ExtremeHeatRiskMetric(BaseMetric):
         self.resolution_km = 10
 
         # Maximum grid points to minimize redundant API calls
-        self.max_grid_points = 20  # 5x5 grid should cover most cities
+        self.max_grid_points = 20 # 5x5 grid should cover most cities
 
         # Cache for temperature data
         self.temperature_data_cache = {}
 
         # Weights for the components of the heat risk score
-        self.temp_rise_weight = 0.7     # 70% for temperature projections
-        self.green_space_weight = 0.3    # 30% for green space (inverse relationship)
+        self.temp_rise_weight = 0.7 # 70% for temperature projections
+        self.green_space_weight = 0.3 # 30% for green space (inverse relationship)
 
         # Temperature thresholds for risk scoring (in °C)
         # Based on scientific literature about heat stress thresholds
         self.mean_temp_thresholds = {
-            16: 0,     # Below 16°C: No heat risk
-            20: 20,    # 16-20°C: Low risk
-            24: 40,    # 20-24°C: Moderate risk
-            28: 70,    # 24-28°C: High risk
-            32: 90,    # 28-32°C: Very high risk
-            100: 100   # Above 32°C: Extreme risk
+            16: 0, # Below 16°C: No heat risk
+            20: 20, # 16-20°C: Low risk
+            24: 40, # 20-24°C: Moderate risk
+            28: 70, # 24-28°C: High risk
+            32: 90, # 28-32°C: Very high risk
+            100: 100 # Above 32°C: Extreme risk
         }
 
         self.max_temp_thresholds = {
-            25: 0,     # Below 25°C: No heat risk
-            30: 20,    # 25-30°C: Low risk
-            35: 50,    # 30-35°C: High risk
-            40: 80,    # 35-40°C: Very high risk
-            100: 100   # Above 40°C: Extreme risk
+            25: 0, # Below 25°C: No heat risk
+            30: 20, # 25-30°C: Low risk
+            35: 50, # 30-35°C: High risk
+            40: 80, # 35-40°C: Very high risk
+            100: 100 # Above 40°C: Extreme risk
         }
 
     def _generate_sampling_grid(self, bounds, crs):
-        """
-        Generate a grid of sampling points at Open-Meteo's resolution.
-
-        Parameters:
-        -----------
-        bounds : tuple
-            (minx, miny, maxx, maxy) bounds in the grid's CRS
-        crs : CRS
-            Coordinate reference system of the bounds
-
-        Returns:
-        --------
-        list:
-            List of (latitude, longitude) tuples for sampling points
-        """
+        # Generate a grid of sampling points at Open-Meteo's resolution.
         from pyproj import Transformer
 
         # Extract bounds
@@ -104,7 +77,7 @@ class ExtremeHeatRiskMetric(BaseMetric):
         transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
 
         # Calculate grid step size in meters (using resolution_km)
-        step_size = self.resolution_km * 1000  # Convert to meters
+        step_size = self.resolution_km * 1000 # Convert to meters
 
         # Calculate number of points needed in each dimension
         width = maxx - minx
@@ -135,22 +108,9 @@ class ExtremeHeatRiskMetric(BaseMetric):
         return sampling_points
 
     def _fetch_temperature_data(self, latitude, longitude):
-        """
-        Fetch climate projection data for a specific location.
-        Uses caching to avoid redundant API calls.
+        # Fetch climate projection data for a specific location
+        # Uses caching to avoid redundant API calls
 
-        Parameters:
-        -----------
-        latitude : float
-            Location latitude
-        longitude : float
-            Location longitude
-
-        Returns:
-        --------
-        dict:
-            Dictionary with processed temperature data
-        """
         # Round coordinates to reduce redundant API calls (0.01° ≈ 1km)
         cache_key = f"{round(latitude, 2)}_{round(longitude, 2)}"
 
@@ -212,9 +172,7 @@ class ExtremeHeatRiskMetric(BaseMetric):
             }
 
     def _process_temperature_data(self, data):
-        """
-        Process temperature data from the API focusing on heat extremes.
-        """
+
         if not data or "daily" not in data:
             return {
                 "mean_temp": 20.0,
@@ -245,7 +203,7 @@ class ExtremeHeatRiskMetric(BaseMetric):
             # Heat risk score based on frequency of hot days rather than absolute temperatures
             # Scientific literature suggests frequency of extremes is more important than averages
             if hot_days_pct >= 15:
-                temp_rise_score = 70 + (very_hot_days_pct * 1.5)  # Higher score for more very hot days
+                temp_rise_score = 70 + (very_hot_days_pct * 1.5) # Higher score for more very hot days
             elif hot_days_pct >= 10:
                 temp_rise_score = 50 + (hot_days_pct - 10) * 4
             elif hot_days_pct >= 5:
@@ -276,21 +234,7 @@ class ExtremeHeatRiskMetric(BaseMetric):
             }
 
     def _score_from_thresholds(self, value, thresholds):
-        """
-        Calculate score based on thresholds.
 
-        Parameters:
-        -----------
-        value : float
-            Value to score
-        thresholds : dict
-            Dictionary of threshold:score pairs
-
-        Returns:
-        --------
-        float:
-            Score between 0-100
-        """
         for threshold, score in sorted(thresholds.items()):
             if value <= threshold:
                 return score
@@ -299,21 +243,6 @@ class ExtremeHeatRiskMetric(BaseMetric):
         return 100
 
     def _find_nearest_point(self, point, sampling_points_data):
-        """
-        Find the nearest sampling point with data.
-
-        Parameters:
-        -----------
-        point : tuple
-            (latitude, longitude) tuple
-        sampling_points_data : dict
-            Dictionary of sampling points and their data
-
-        Returns:
-        --------
-        tuple:
-            (nearest point key, distance)
-        """
         lat, lon = point
         nearest_key = None
         min_distance = float('inf')
@@ -331,21 +260,6 @@ class ExtremeHeatRiskMetric(BaseMetric):
         return nearest_key, min_distance
 
     def calculate(self, grid_gdf, city_name=None):
-        """
-        Calculate extreme heat risk score for each hexagon in the grid.
-
-        Parameters:
-        -----------
-        grid_gdf : GeoDataFrame
-            Hexagon grid
-        city_name : str, optional
-            Name of the city (used for logging only)
-
-        Returns:
-        --------
-        grid_gdf : GeoDataFrame
-            Grid with added extreme heat risk score columns
-        """
         print(f"Calculating Extreme Heat Risk metric for {city_name or 'unknown area'}...")
         start_time = time.time()
 
@@ -416,12 +330,12 @@ class ExtremeHeatRiskMetric(BaseMetric):
                 if 'green_percentage' in grid_gdf.columns:
                     # Higher green percentage = lower risk (inverse relationship)
                     green_percentage = hexagon['green_percentage']
-                    green_factor = 100 - min(100, green_percentage * 1.3)  # 67% green space or more is optimal (0 risk)
+                    green_factor = 100 - min(100, green_percentage * 1.3) # 67% green space or more is optimal (0 risk)
                 elif 'green_space' in grid_gdf.columns:
                     # Convert green space score to risk factor (inverse)
                     green_factor = 100 - hexagon['green_space']
 
-            # Combined score: Temperature rise (70%) + Green Space Factor (30%)
+            # Combined score
             temp_rise_score = result["temp_rise_score"]
             final_risk = (
                     temp_rise_score * self.temp_rise_weight +
@@ -440,31 +354,25 @@ class ExtremeHeatRiskMetric(BaseMetric):
             grid_gdf.at[idx, self.name] = resistance_score
             grid_gdf.at[idx, f"{self.name}_score"] = resistance_score
 
-        # Generate debug statistics
-        print("\n----- Extreme Heat Risk Metric: DEBUG INFORMATION -----")
-        print(f"Average Projected Mean Temperature: {grid_gdf[f'{self.name}_mean_temp'].mean():.2f}°C")
-        print(f"Average Projected Max Temperature: {grid_gdf[f'{self.name}_max_temp'].mean():.2f}°C")
-
-
         print("\nIndividual sampling point data:")
         for i, (key, data) in enumerate(sampling_points_data.items()):
             lat, lon = key.split('_')
-            print(f"  Point {i+1} ({lat}, {lon}):")
-            print(f"    Mean Temp: {data['mean_temp']:.2f}°C")
-            print(f"    Max Temp: {data['max_temp']:.2f}°C")
+            print(f"Point {i+1} ({lat}, {lon})")
+            print(f"Mean Temp: {data['mean_temp']:.2f}°C")
+            print(f"Max Temp: {data['max_temp']:.2f}°C")
 
             # Check if the new fields exist in the data
             if 'hot_days_pct' in data:
-                print(f"    Hot Days (>25°C): {data['hot_days_pct']:.1f}%")
+                print(f"Hot Days (>25°C): {data['hot_days_pct']:.1f}%")
 
             if 'very_hot_days_pct' in data:
-                print(f"    Very Hot Days (>30°C): {data['very_hot_days_pct']:.1f}%")
+                print(f"Very Hot Days (>30°C): {data['very_hot_days_pct']:.1f}%")
 
             # Use a default key that should exist in all versions of the data
             temp_score_key = 'temp_rise_score' if 'temp_rise_score' in data else 'mean_temp_score'
-            print(f"    Temperature Risk Score: {data[temp_score_key]:.1f}")
+            print(f"Temperature Risk Score: {data[temp_score_key]:.1f}")
 
-        print(f"\nTemperature Risk Score Range: {grid_gdf[f'{self.name}_temp_rise'].min():.1f} - {grid_gdf[f'{self.name}_temp_rise'].max():.1f}")
+        print(f"Temperature Risk Score Range: {grid_gdf[f'{self.name}_temp_rise'].min():.1f} - {grid_gdf[f'{self.name}_temp_rise'].max():.1f}")
 
         if has_green_data:
             print(f"Green Factor Score Range: {grid_gdf[f'{self.name}_green_factor'].min():.1f} - {grid_gdf[f'{self.name}_green_factor'].max():.1f}")
