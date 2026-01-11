@@ -1,6 +1,6 @@
 # Geospatial Scoring Suite
 
-A modular geospatial analysis platform that calculates location-based scores across Germany using hexagonal grid tessellation. Built on a previous development version of the [Neivo](https://neivo.de) project.
+A modular geospatial analysis platform that calculates location-based scores across Germany using hexagonal grid tessellation. This is repository contains an earlier development version of the propietary [Neivo](https://neivo.de) data solution.
 
 ![Example Infrastructure Safety Score Map for Karlsruhe, Germany](<backend-compute/Core/data/results/infrastructure_safety_score_map_Karlsruhe, Germany.png>)
 
