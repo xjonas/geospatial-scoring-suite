@@ -11,15 +11,13 @@ Traditional geospatial analysis often relies on administrative boundaries (distr
 The scoring engine aggregates data from multiple sources — OpenStreetMap, environmental agencies, satellite imagery, and official statistics — and distills it into normalized 0–100 scores for walkability, climate resilience, livability, and related dimensions.
 
 ## Architecture
-
 ![Architecture](<architecture.png>)
 
 | Component | Description |
 |-----------|-------------|
-| **Backend Compute** | Python engine using [H3](https://github.com/uber/h3) for hexagonal indexing, writes results to Postgres |
-| **Database** | Postgres storage mapping H3 cell IDs to computed scores |
-| **API Server** | Lightweight middleware handling coordinate-to-hexagon conversion and score retrieval |
-| **Frontend** | React app for visualization (live at [standortscore.de](https://www.standortscore.de/)) |
+| **Backend Compute** | Python engine using [H3](https://github.com/uber/h3) for hexagonal indexing |
+| **Server** | Handles coordinate-to-hexagon conversion and score retrieval, as well as auth |
+| **Frontend** | Simple example React app for visualization (live at [standortscore.de](https://www.standortscore.de/)) |
 
 ![Website](<website.png>)
 
@@ -35,7 +33,7 @@ The compute engine processes a target city through the following stages:
    - *Walkability Score* = f(safety, infrastructure, amenity access, ...)
    - *Climate Score* = f(flood risk, heat risk, drought risk)
 
-4. **Storage** — Exports results to GeoPackage (`.gpkg`) and optionally to Postgres.
+4. **Storage** — Exports results to GeoPackage (`.gpkg`) and optionally to Postgres
 
 **Data flow details:**
 - **Input**: Custom preprocessed datasets in `backend-compute/Core/data/input/`
