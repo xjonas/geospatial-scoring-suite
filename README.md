@@ -11,13 +11,14 @@ Traditional geospatial analysis often relies on administrative boundaries (distr
 The scoring engine aggregates data from multiple sources — OpenStreetMap, environmental agencies, satellite imagery, and official statistics — and distills it into normalized 0–100 scores for walkability, climate resilience, livability, and related dimensions.
 
 ## Architecture
+The repository comes with a simpliefied setup to calculate the scores and retrieve those through a backend proxy via multiple API endpoints. 
 ![Architecture](<architecture.png>)
 
 | Component | Description |
 |-----------|-------------|
 | **Backend Compute** | Python engine using [H3](https://github.com/uber/h3) for hexagonal indexing |
 | **Server** | Handles coordinate-to-hexagon conversion and score retrieval, as well as auth |
-| **Frontend** | Simple example React app for visualization (live at [standortscore.de](https://www.standortscore.de/)) |
+| **Frontend** | Simple demo React app for visualization (live at [standortscore.de](https://www.standortscore.de/)) |
 
 ![Website](<website.png>)
 
