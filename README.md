@@ -107,6 +107,8 @@ python backend-compute/Core/main.py
 6. Deploy `server/` (e.g., Vercel, AWS)
 7. Deploy `frontend-website/`
 
+**Note** Don't use this setup for production systems - for this use severless caching, hash the keys, and set it up as a S2S system and not with Client-side calls!
+
 ## Resources
 
 - **API Reference**: [Notion Documentation](https://electric-fight-544.notion.site/API-Reference-1ce08bb8e5cc80fe8532ef8bc63c21e3?pvs=4)
