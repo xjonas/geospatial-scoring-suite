@@ -1,6 +1,6 @@
 # Geospatial Scoring Suite
 
-A modular geospatial analysis platform that calculates location-based scores across Germany using hexagonal grid tessellation. This is repository contains an earlier development version of the propietary [Neivo](https://neivo.de) data solution. The output and includes comprehensive climate and livability data scores that can be used in real-estate, insurance, or other sectors that rely on detailed location risk data.
+A modular geospatial analysis platform that calculates location-based scores across Germany using hexagonal grid tessellation. This is repository contains an earlier development version of the propietary neivo data solution. The output and includes comprehensive climate and livability data scores that can be used in real-estate, insurance, or other sectors that rely on detailed location risk data.
 
 ![Example Infrastructure Safety Score Map for Karlsruhe, Germany](<backend-compute/Core/data/results/infrastructure_safety_score_map_Karlsruhe, Germany.png>)
 
@@ -9,18 +9,6 @@ A modular geospatial analysis platform that calculates location-based scores acr
 Traditional geospatial analysis often relies on administrative boundaries (districts, postal codes), which creates artificial discontinuities in data. This project takes a different approach: it overlays a continuous hexagonal grid across the target area and computes metrics per hexagon. The result is a more granular and spatially consistent representation of location quality.
 
 The scoring engine aggregates data from multiple sources — OpenStreetMap, environmental agencies, satellite imagery, and official statistics — and distills it into normalized 0–100 scores for walkability, climate resilience, livability, and related dimensions.
-
-## Architecture
-The repository comes with a simpliefied setup to calculate the scores and retrieve those through a backend proxy via multiple API endpoints. 
-![Architecture](<architecture.png>)
-
-| Component | Description |
-|-----------|-------------|
-| **Backend Compute** | Python engine using [H3](https://github.com/uber/h3) for hexagonal indexing |
-| **Server** | Handles coordinate-to-hexagon conversion and score retrieval, as well as auth |
-| **Frontend** | Simple demo React app for visualization (live at [standortscore.de](https://www.standortscore.de/)) |
-
-![Website](<website.png>)
 
 ## Data Pipeline
 
